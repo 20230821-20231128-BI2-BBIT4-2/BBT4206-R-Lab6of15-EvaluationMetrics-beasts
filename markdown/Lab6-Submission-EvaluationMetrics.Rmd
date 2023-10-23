@@ -39,6 +39,7 @@ knitr::opts_chunk$set(
 # Load the dataset
 
 ```{r}
+library(AER)
 data("Affairs")
 #str(Affairs)
 ```
@@ -48,6 +49,8 @@ data("Affairs")
 **Description:**45% of the original data will be used to train the model and 55% of the original data will be used to test the model.
 
 ```{r}
+library(caret)
+
 train_index <- createDataPartition(Affairs$yearsmarried,
                                    p = 0.45,
                                    list = FALSE)
@@ -195,6 +198,8 @@ print(affairs_model_knn)
 #### Sensitivity and Specificity
 
 ```{r}
+library(pROC)
+
 predictions <- predict(affairs_model_knn, affairs_test[, 1:9])
 print(predictions)
 
