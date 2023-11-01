@@ -1,0 +1,241 @@
+---
+title: "Business Intelligence Project"
+author: "<Specify your name here>"
+date: "<Specify the date when you submitted the lab>"
+output:
+  github_document: 
+    toc: yes
+    toc_depth: 4
+    fig_width: 6
+    fig_height: 4
+    df_print: default
+editor_options:
+  chunk_output_type: console
+---
+
+# Student Details
+
+|                                              |                             |
+|--------------------------------------------|----------------------------|
+| **Student ID Number**                        | 119630,135844,131038,104135 |
+| **Student Name**                             | beasts                      |
+| **BBIT 4.2 Group**                           | A&B&C                       |
+| **BI Project Group Name/ID (if applicable)** | beasts                      |
+
+# Setup Chunk
+
+**Note:** the following KnitR options have been set as the global defaults: <BR> `knitr::opts_chunk$set(echo = TRUE, warning = FALSE, eval = TRUE, collapse = FALSE, tidy = TRUE)`.
+
+More KnitR options are documented here <https://bookdown.org/yihui/rmarkdown-cookbook/chunk-options.html> and here <https://yihui.org/knitr/options/>.
+
+```{r setup, include=FALSE}
+library(formatR)
+knitr::opts_chunk$set(
+  warning = FALSE,
+  collapse = FALSE
+)
+```
+
+# Load the dataset
+
+```{r}
+library(AER)
+data("Affairs")
+#str(Affairs)
+```
+
+# Split the dataset
+
+**Description:**45% of the original data will be used to train the model and 55% of the original data will be used to test the model.
+
+```{r}
+library(caret)
+
+train_index <- createDataPartition(Affairs$yearsmarried,
+                                   p = 0.45,
+                                   list = FALSE)
+affairs_train <- Affairs[train_index, ]
+affairs_test <- Affairs[-train_index, ]
+```
+
+# Accuracy and Cohen's Kappa
+
+## Determine the Baseline Accuracy
+
+```{r}
+affairs_freq <- Affairs$yearsmarried
+cbind(frequency =
+        table(affairs_freq),
+      percentage = prop.table(table(affairs_freq)) * 100)
+```
+
+## Train the Model
+
+```{r}
+train_control <- trainControl(method = "cv", number = 5)
+
+set.seed(7)
+affairs_model_glm <-
+  train(children  ~ ., data = affairs_train, method = "glm",
+        metric = "Accuracy", trControl = train_control)
+```
+
+## Display the Model's Performance
+
+### Use the metric calculated by caret when training the model
+
+```{r}
+print(affairs_model_glm)
+```
+
+### Compute the metric yourself using the test dataset
+
+```{r}
+predictions <- predict(affairs_model_glm, affairs_test[, 1:9])
+confusion_matrix <-
+  caret::confusionMatrix(predictions,
+                         affairs_test[, 1:9]$children)
+
+print(confusion_matrix)
+```
+
+### Display a graphical confusion matrix
+
+```{r}
+fourfoldplot(as.table(confusion_matrix), color = c("grey", "lightblue"),
+             main = "Confusion Matrix")
+```
+
+# RMSE, R Squared, and MAE
+
+## Train the Model
+
+```{r}
+train_control <- trainControl(method = "boot", number = 1000)
+
+affairs_model_lm <-
+  train(yearsmarried ~ ., data = affairs_train,
+        na.action = na.omit, method = "lm", metric = "RMSE",
+        trControl = train_control)
+```
+
+## Display the Model's Performance
+
+### Use the metric calculated by caret when training the model
+
+```{r}
+print(affairs_model_lm)
+```
+
+### Compute the metric yourself using the test dataset
+
+```{r}
+predictions <- predict(affairs_model_lm, affairs_test[, 1:9])
+print(predictions)
+```
+
+#### RMSE
+
+```{r}
+rmse <- sqrt(mean((affairs_test$yearsmarried - predictions)^2))
+print(paste("RMSE =", rmse))
+```
+
+#### SSR
+
+```{r}
+ssr <- sum((affairs_test$yearsmarried - predictions)^2)
+print(paste("SSR =", ssr))
+```
+
+#### SST
+
+```{r}
+sst <- sum((affairs_test$yearsmarried - mean(affairs_test$yearsmarried))^2)
+print(paste("SST =", sst))
+```
+
+#### R Squared
+
+```{r}
+r_squared <- 1 - (ssr / sst)
+print(paste("R Squared =", r_squared))
+```
+
+#### MAE
+
+```{r}
+absolute_errors <- abs(predictions - affairs_test$yearsmarried)
+mae <- mean(absolute_errors)
+print(paste("MAE =", mae))
+```
+
+# Area Under ROC Curve
+
+## Train the Model
+
+```{r}
+train_control <- trainControl(method = "cv", number = 10,
+                              classProbs = TRUE,
+                              summaryFunction = twoClassSummary)
+
+set.seed(7)
+affairs_model_knn <-
+  train(children ~ ., data = affairs_train, method = "knn",
+        metric = "ROC", trControl = train_control)
+```
+
+## Display the Model's Performance
+
+### Use the metric calculated by caret when training the model
+
+```{r}
+print(affairs_model_knn)
+```
+
+### Compute the metric yourself using the test dataset
+
+#### Sensitivity and Specificity
+
+```{r}
+library(pROC)
+
+predictions <- predict(affairs_model_knn, affairs_test[, 1:9])
+print(predictions)
+
+confusion_matrix <-
+  caret::confusionMatrix(predictions,affairs_test[, 1:9]$children)
+print(confusion_matrix)
+```
+
+#### AUC
+
+```{r}
+predictions <- predict(affairs_model_knn, affairs_test[, 1:9],
+                       type = "prob")
+print(predictions)
+
+roc_curve <- roc(affairs_test$children, predictions$no)
+plot(roc_curve, main = "ROC Curve for KNN Model", print.auc = TRUE,
+     print.auc.x = 0.6, print.auc.y = 0.6, col = "blue", lwd = 2.5)
+```
+
+# Logarithmic Loss (LogLoss)
+
+## Train the Model
+
+```{r}
+train_control <- trainControl(method = "repeatedcv", number = 5, repeats = 3,
+                              classProbs = TRUE,
+                              summaryFunction = mnLogLoss)
+set.seed(7)
+
+affairs_model_cart <- train(gender ~ ., data = Affairs, method = "rpart",
+                         metric = "logLoss", trControl = train_control)
+```
+
+## Display the Model's Performance
+
+```{r}
+print(affairs_model_cart)
+```

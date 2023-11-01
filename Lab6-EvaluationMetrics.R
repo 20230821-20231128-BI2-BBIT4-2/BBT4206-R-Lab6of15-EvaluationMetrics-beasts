@@ -26,15 +26,15 @@
 #   More detailed article: https://rstudio.github.io/renv/articles/renv.html
 
 # "renv" It can be installed as follows:
-# if (!is.element("renv", installed.packages()[, 1])) {
-# install.packages("renv", dependencies = TRUE,
-# repos = "https://cloud.r-project.org") # nolint
-# }
-# require("renv") # nolint
+ if (!is.element("renv", installed.packages()[, 1])) {
+ install.packages("renv", dependencies = TRUE,
+ repos = "https://cloud.r-project.org") # nolint
+ }
+ require("renv") # nolint
 
 # Once installed, you can then use renv::init() to initialize renv in a new
 # project.
-
+renv::init()
 # The prompt received after executing renv::init() is as shown below:
 # This project already has a lockfile. What would you like to do?
 
@@ -137,6 +137,7 @@ if (require("ggplot2")) {
 }
 
 ## caret ----
+
 if (require("caret")) {
   require("caret")
 } else {
@@ -233,6 +234,7 @@ predictions <- predict(diabetes_model_glm, pima_indians_diabetes_test[, 1:8])
 confusion_matrix <-
   caret::confusionMatrix(predictions,
                          pima_indians_diabetes_test[, 1:9]$diabetes)
+#print(predictions)The predictions the model has predicted 
 print(confusion_matrix)
 
 ### Option 3: Display a graphical confusion matrix ----
